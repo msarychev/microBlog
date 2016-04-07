@@ -8,7 +8,8 @@
 				<div class="panel-heading">Home</div>
 
 				<div class="panel-body">
-					You are logged in!
+					You are logged in as {{$name}}!
+					<a href="/auth/logout">Logout</a>
 				</div>
 			</div>
 		</div>

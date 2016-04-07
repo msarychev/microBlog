@@ -1,4 +1,5 @@
 <?php namespace App\Http\Controllers;
+use App\Models\Message;
 
 class HomeController extends Controller {
 
@@ -20,7 +21,7 @@ class HomeController extends Controller {
 	 */
 	public function __construct()
 	{
-		$this->middleware('auth');
+//		$this->middleware('auth');
 	}
 
 	/**
@@ -30,7 +31,11 @@ class HomeController extends Controller {
 	 */
 	public function index()
 	{
-		return view('home');
+		$value = \Request::cookie('name');
+		if (!$value) {
+			return view('auth.login');
+		}
+		return view('home')->with('name', $value);
 	}
 
 }

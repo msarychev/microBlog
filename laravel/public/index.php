@@ -46,6 +46,10 @@ $app = require_once __DIR__.'/../bootstrap/app.php';
 |
 */
 
+function d($var) {
+	echo '<script> console.log('.json_encode($var).'); </script>' ;
+}
+
 $kernel = $app->make('Illuminate\Contracts\Http\Kernel');
 
 $response = $kernel->handle(

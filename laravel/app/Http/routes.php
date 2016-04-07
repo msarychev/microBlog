@@ -13,9 +13,9 @@
 
 Route::get('/', 'WelcomeController@index');
 
-Route::get('home', 'HomeController@index');
+Route::get('home',['as' => 'home', 'uses' => 'HomeController@index']);
 
 Route::controllers([
-	'auth' => 'Auth\AuthController',
+	'auth' => 'AuthController',
 	'password' => 'Auth\PasswordController',
 ]);
