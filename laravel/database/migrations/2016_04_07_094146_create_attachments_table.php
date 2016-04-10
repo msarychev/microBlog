@@ -16,7 +16,8 @@ class CreateAttachmentsTable extends Migration {
 		{
 			$table->increments('id');
 			$table->integer('message_id');
-			$table->enum('Type', array('picture', 'link', 'video'));
+			$table->string('value');
+			$table->enum('type', array('picture', 'link', 'video'));
 			$table->timestamp('created_at')->nullable();
 			$table->timestamp('updated_at')->nullable();
 		});

@@ -1,5 +1,5 @@
 <?php
-
+use App\Models\Message;
 /*
 |--------------------------------------------------------------------------
 | Application Routes
@@ -13,9 +13,10 @@
 
 Route::get('/', 'WelcomeController@index');
 
-Route::get('home',['as' => 'home', 'uses' => 'HomeController@index']);
+
 
 Route::controllers([
 	'auth' => 'AuthController',
 	'password' => 'Auth\PasswordController',
+	'home' => 'HomeController'
 ]);

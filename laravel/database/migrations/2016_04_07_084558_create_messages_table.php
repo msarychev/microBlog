@@ -17,7 +17,6 @@ class CreateMessagesTable extends Migration {
 			$table->increments('id');
 			$table->string('user');
 			$table->text('text');
-			$table->integer('likes');
 			$table->timestamp('created_at')->nullable();
 			$table->timestamp('updated_at')->nullable();
 

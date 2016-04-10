@@ -7,7 +7,7 @@ class AuthController extends Controller {
         $name = \Input::get('name');
 
 //        setcookie('name', $name);
-        return redirect()->route('home')->withCookie(cookie('name', $name));
+        return redirect('home')->withCookie(cookie('name', $name));
     }
     public function getLogin()
     {
@@ -15,6 +15,6 @@ class AuthController extends Controller {
     }
     public function getLogout()
     {
-        return redirect()->route('home')->withCookie(cookie('name', "", time() - 3600));
+        return redirect('home')->withCookie(cookie('name', "", time() - 3600));
     }
 }
