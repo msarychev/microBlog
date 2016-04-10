@@ -4,6 +4,7 @@ use App\Models\Message;
 use App\Models\Attachment;
 use App\Models\Like;
 use App\Http\Requests\StoreMessageRequest;
+
 class HomeController extends Controller
 {
 
@@ -20,8 +21,6 @@ class HomeController extends Controller
 
     /**
      * Create a new controller instance.
-     *
-     * @return void
      */
     public function __construct()
     {
@@ -34,95 +33,153 @@ class HomeController extends Controller
      */
     public function getIndex()
     {
-        $value = \Request::cookie('name');
-        if (!$value) {
+        $userName = \Request::cookie('name');
+        if (!$userName) {
             return view('auth.login');
         }
-        return view('home')->with(['name' => $value, 'messages' => $this->makeArrayMessages()]);
+
+        return view('home')->with(['name' => $userName, 'messages' => $this->makeArrayMessages()]);
     }
 
+    /**
+     * Get a new messages for ajax
+     *
+     * @return Response or 0
+     */
     public function getMessages()
     {
-        return view('messages.list')->with(['messages' => $this->makeArrayMessages()]);
+        // We have very few users, messages, likes. So we can just compare counts of them and refresh all messages
+        $oldMsgCnt = \Session::get('messageCount');
+        $oldLikesCnt = \Session::get('likesCount');
+
+        // Calculate "new" values
+        $newMsgCnt = Message::all()->count();
+        $newLikesCnt = Like::all()->count();
+
+        if ($oldMsgCnt != $newMsgCnt or $oldLikesCnt != $newLikesCnt) {
+            // So we will refresh only message list as part of view
+            return view('messages.list')->with(['messages' => $this->makeArrayMessages()]);
+        }
+        return 0;
     }
 
-    public function makeArrayMessages($paginateCount = 5)
+
+    /**
+     * Get all messages as array with pagination
+     * @param int $paginateCount
+     * @return array
+     */
+    public function makeArrayMessages($paginateCount = 10)
     {
-        $messages = Message::orderBy('created_at', 'DESC')->simplePaginate($paginateCount);
-        foreach($messages as $message)
+        // Calculate "old" values
+        \Session::put('messageCount', Message::all()->count());
+        \Session::put('likesCount', Like::all()->count());
+        // Set pagination
+        $paginateMessages = Message::orderBy('created_at', 'DESC')->simplePaginate($paginateCount);
+        $paginateMessages->setPath('home');
+        // Get all attachments for all messages
+        foreach ($paginateMessages as $message):
             $message->attachments;
-        return $messages;
+        endforeach;
+
+        return $paginateMessages;
     }
 
+    /**
+     * Create the message from the form fields. StoreMessageRequest use for validation form
+     * @param App\Http\Requests\StoreMessageRequest $request
+     * @return Response
+     */
     public function postStore(StoreMessageRequest $request)
     {
-        $name = $request->cookie('name');
-
+        $userName = $request->cookie('name');
+        // Get all values from form
         $fields = $request->all();
-
+        // Creating instance of message model
         $text = $fields['text'];
-        // THINK ABOUT SET COOKIE TO OWNER MESSAGE
-        $message = new Message(['user' => $name, 'text' => 'text']);
-        $message->user = $name;
+        $text = strip_tags($text);
+        $text = htmlspecialchars($text);
+        $message = new Message(['user' => $userName, 'text' => 'text']);
+        $message->user = $userName;
         $message->text = $text;
         $message->save();
 
+        // For each attachment create instance and save to base by one function
+        $attach = [];
         $links = $fields['link'];
-        foreach($links as $link) :
+        foreach ($links as $link) :
             if ($link != "") {
-//          THINK ABOUT CREATE ARRAY OF ATTACHMENTS AND SAVE IT MULTIPLY
-                $attach = new Attachment(['value' => $link, 'message_id' => $message->id, 'type' => 'link']);
-                $attach->save();
+                $attach[] = new Attachment(['value' => $link, 'type' => 'link']);
             }
         endforeach;
 
         $photos = $fields['photo'];
-        foreach($photos as $file) :
-            if($file) {
+        foreach ($photos as $photo) :
+            if ($photo) {
                 $destinationPath = 'uploads';
-                $extension = $file->getClientOriginalExtension();
+                $extension = $photo->getClientOriginalExtension();
                 $fileName = rand(1111, 9999) . time() . '.' . $extension;
-                $upload_success = $file->move($destinationPath, $fileName);
+                $upload_success = $photo->move($destinationPath, $fileName);
                 if ($upload_success) {
                     $pathFile = $destinationPath . "/" . $fileName;
-                    $file = new Attachment(['value' => $pathFile, 'message_id' => $message->id, 'type' => 'picture']);
-                    //  THINK ABOUT INSERT THROUGH MESSAGE MODEL $file = $message->attachments()->save($file);
-                    $file->save();
+                    $attach[] = new Attachment(['value' => $pathFile, 'type' => 'picture']);
                 }
             }
         endforeach;
 
         $videos = $fields['video'];
-        foreach($videos as $video):
+        foreach ($videos as $video):
             if ($video != '') {
+                // Get videoId for iframe
                 $pattern = '~\bhttps?://www\.youtube\.com/watch\?v=(.{11}).*\b~';
-                $test = preg_match($pattern, $video, $matches);
-                $attach = new Attachment(['value' => $matches[1], 'message_id' => $message->id, 'type' => 'video']);
-                $attach->save();
+                preg_match($pattern, $video, $matches);
+                $attach[] = new Attachment(['value' => $matches[1], 'type' => 'video']);
             }
         endforeach;
+
+        // Save attachments with message_id = $message->id
+        $message->attachments()->saveMany($attach);
 
         return redirect('home');
 
     }
 
+    /**
+     * Action on click like button
+     * @param integer $id
+     * @return integer
+     */
     public function anyLike($id)
     {
         $currentUser = \Request::cookie('name');
 
         $isMyLike = Like::whereRaw("user = '$currentUser' and message_id = $id")->first();
-
+        // Check for like or dislike
         if (!$isMyLike) {
             $like = new Like();
             $like->message_id = $id;
             $like->user = \Request::cookie('name');
             $like->save();
-        }
-        else {
+        } else {
             $isMyLike->delete();
         }
-
         return Message::find($id)->likes->count();
+    }
+
+    /**
+     * Action on click delete button
+     * @param integer $id
+     */
+    public function anyDelete($id)
+    {
+        $msg = Message::find($id);
+        foreach($msg->likes as $like):
+            $like->delete();
+        endforeach;
+        foreach($msg->attachments as $attach):
+            $attach->delete();
+        endforeach;
+        $msg->delete();
     }
 
 }

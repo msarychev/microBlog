@@ -22,7 +22,7 @@ class StoreMessageRequest extends Request {
 	public function rules()
 	{
 		$rules = [
-			'text' => 'required_without:photo.0',
+			'text' => 'required_without_all:photo.0,link.0,video.0',
 		];
 
 		return $rules;
@@ -33,7 +33,7 @@ class StoreMessageRequest extends Request {
 
 		$messages = [
 			'image' => 'Uploaded file must be an image',
-			'required_without' => 'Please fill one of these fields'
+			'required_without_all' => 'Please fill one of these fields'
 		];
 		$v = $factory->make($this->all(), $this->rules(), $messages);
 		$v->each('photo', ['image']);
